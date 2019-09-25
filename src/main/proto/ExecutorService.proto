@@ -1,0 +1,92 @@
+syntax = "proto3";
+package io.mark.java_examples.Executors.grpc;
+option java_multiple_files = true;
+
+message Function {
+    string name = 1;
+    string handler = 2;
+    string jarFile = 3;
+    }
+
+message AddRequest {
+  string name=1;
+// Handler is fully qualified class name:method name
+// For example io.mark.java_examples.Executables.RunThisCode:addPerson
+  string handler = 2;
+}
+
+message AddResponse {
+  bool added=1;
+}
+
+message DeleteRequest {
+// Function is fully qualified class name:method name
+// For example io.mark.java_examples.Executables.RunThisCode:addPerson
+  string name = 1;
+}
+
+message DeleteResponse {
+  bool deleted = 1;
+}
+
+message UpdateRequest {
+  string name=1;
+// Handler is fully qualified class name:method name
+// For example io.mark.java_examples.Executables.RunThisCode:addPerson
+  string handler = 2;
+}
+
+message UpdateResponse {
+  bool updated=1;
+}
+
+message GetRequest {
+  string name=1;
+ }
+
+message GetResponse {
+   string handler = 2;
+   string jarFile = 3;
+}
+
+message ListRequest {
+  string filter = 1;
+ }
+
+message ListResponse {
+   repeated Function function= 1;
+}
+
+message ExecutionRequest {
+  string name = 1;
+  // data in JSON
+  string data = 2;
+}
+
+message ExecutionResponse {
+  // data in JSON
+  string data = 1;
+}
+
+message UploadFileRequest {
+    string functionName = 1;
+    string jarFile = 2;
+    bytes fileContent = 3;
+}
+
+message UploadFileResponse {
+    bool uploaded = 1;
+}
+
+
+service FunctionService {
+  rpc Add(AddRequest) returns (AddResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc Update(UpdateRequest) returns (UpdateResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc List(ListRequest) returns (ListResponse);
+  rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse) {}
+  rpc Execute(ExecutionRequest) returns (ExecutionResponse);
+}
+
+
