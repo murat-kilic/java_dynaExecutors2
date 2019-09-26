@@ -3,6 +3,7 @@ package io.mark.java_examples.Executors.grpc;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import com.google.common.io.ByteSink;
@@ -175,7 +176,7 @@ try {
 		   URLClassLoader urlClassLoader = new URLClassLoader(
 				   new URL[]{jarPath.toUri().toURL()},
 				   classLoader);
-		   String[] tempArray=fx.getHandler().split(":");
+		   String[] tempArray=fx.getHandler().split("::");
 		   Class executableClass = urlClassLoader.loadClass(tempArray[0]);
 		   Method method;
 		   Object obj1 = executableClass.newInstance();
@@ -186,15 +187,15 @@ try {
 		   Method[] methods = executableClass.getDeclaredMethods();
 		   String methodName = tempArray[1];
 		   // System.out.println(methodName);
-		   boolean foundMEthod = false;
+		   boolean foundMethod = false;
 		   for (Method m : methods) {
 			   if (m.getName().equals(methodName)) {
-				   foundMEthod = true;
+				   foundMethod = true;
 				   Class[] pTypes = m.getParameterTypes();
 				   if (pTypes.length == 1) {
 					   Class pType = pTypes[0];
 					   method = executableClass.getMethod(methodName, new Class[]{pType});
-					   returnedObject = method.invoke(obj1, gson.fromJson(request.getData(), pType));
+					   returnedObject = method.invoke(obj1, gson.fromJson(request.getInput(), pType));
 					   break;
 				   } else if (pTypes.length == 0) {
 					   method = executableClass.getMethod(methodName);
@@ -203,12 +204,24 @@ try {
 				   }
 			   }
 		   }
-		   if (foundMEthod) {
+		   if (foundMethod) {
 			   if (returnedObject == null) {
-				   // resBuilder.setErrCode("0").build();
-				   resBuilder.build();
-			   } else {
-				   resBuilder.setData(gson.toJson(returnedObject)).build();
+					   } else {
+			   		if (request.getSerializationFormat().equals("java")) {
+						// Change output data to Bytestring (bytes in proto) instead of JSON
+
+						try {
+							ByteString.Output bsOut = ByteString.newOutput();
+							ObjectOutputStream out = new ObjectOutputStream(bsOut);
+							out.writeObject(returnedObject);
+							resBuilder.setJavaOut(bsOut.toByteString());
+							bsOut.close();
+						} catch (Exception e) {
+							responseObserver.onError(e);
+						}
+					}else {
+						resBuilder.setJsonOut(gson.toJson(returnedObject)).build();
+					}
 			   }
 			   responseObserver.onNext(resBuilder.build());
 			   responseObserver.onCompleted();

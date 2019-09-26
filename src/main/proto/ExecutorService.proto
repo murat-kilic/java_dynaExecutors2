@@ -2,6 +2,9 @@ syntax = "proto3";
 package io.mark.java_examples.Executors.grpc;
 option java_multiple_files = true;
 
+// Handler is fully qualified class name::method name
+// For example io.mark.java_examples.Executables.RunThisCode::addPerson
+
 message Function {
     string name = 1;
     string handler = 2;
@@ -10,8 +13,7 @@ message Function {
 
 message AddRequest {
   string name=1;
-// Handler is fully qualified class name:method name
-// For example io.mark.java_examples.Executables.RunThisCode:addPerson
+
   string handler = 2;
 }
 
@@ -20,8 +22,6 @@ message AddResponse {
 }
 
 message DeleteRequest {
-// Function is fully qualified class name:method name
-// For example io.mark.java_examples.Executables.RunThisCode:addPerson
   string name = 1;
 }
 
@@ -31,8 +31,6 @@ message DeleteResponse {
 
 message UpdateRequest {
   string name=1;
-// Handler is fully qualified class name:method name
-// For example io.mark.java_examples.Executables.RunThisCode:addPerson
   string handler = 2;
 }
 
@@ -60,12 +58,20 @@ message ListResponse {
 message ExecutionRequest {
   string name = 1;
   // data in JSON
-  string data = 2;
+  string input = 2;
+  //Output serialization format
+  // This is for specifying output format in the Execution Response, if we want serialized Java object serialized or JSON
+  // Implementing default as JSON. Set it to "java" if otherwise
+  string serializationFormat=3;
 }
 
 message ExecutionResponse {
-  // data in JSON
-  string data = 1;
+  oneof output_oneof {
+  // JSON serialized output
+  string jsonOut = 1;
+  // JAVA serialized output
+  bytes javaOut = 2;
+  }
 }
 
 message UploadFileRequest {

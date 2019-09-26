@@ -6,10 +6,12 @@ import io.grpc.stub.StreamObserver;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import com.google.protobuf.ByteString;
+import io.mark.java_examples.Executables.AddPersonResponse;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 
+import java.io.ObjectInputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -124,16 +126,43 @@ public class JavaExecutorGRPCClient
         }
 
     }
-    private void executeFunction(String functionName,String data) {
-        try {
-            ExecutionRequest request = ExecutionRequest.newBuilder().setName(functionName).setData(data).build();
-            ExecutionResponse response = blockingStub.execute(request);
-            System.out.println("Response from server:" + response);
-      } catch (StatusRuntimeException e) {
-            System.out.println("RPC failed: {0} "+e.getStatus());
-        }
+    private Object executeFunction(String functionName,String data) {
+        return executeFunction(functionName, data, null);
     }
 
+    private Object executeFunction(String functionName,String data,String requestedOutputFormat) {
+        try {
+
+            //ExecutionRequest request = ExecutionRequest.newBuilder().setName(functionName).setInput(data).build();
+            ExecutionRequest.Builder reqBuilder = ExecutionRequest.newBuilder().setName(functionName).setInput(data);
+
+            if (requestedOutputFormat != null) {
+                reqBuilder.setSerializationFormat(requestedOutputFormat);
+            }
+
+            ExecutionResponse response = blockingStub.execute(reqBuilder.build());
+            if (response.getOutputOneofCase().equals(ExecutionResponse.OutputOneofCase.JSONOUT)) {
+                return(response.getJsonOut());
+            }else {
+                ObjectInputStream in = new ObjectInputStream(response.getJavaOut().newInput());
+                AddPersonResponse person = (AddPersonResponse) in.readObject();
+                in.close();
+                return person;
+                  /* In case we want to convert to JSON for any other reason we can use this code
+            Gson gson = new GsonBuilder()
+                    .setLenient()
+                    .create();
+            String jsonOut=gson.toJson(person)
+            */
+            }
+        } catch (StatusRuntimeException e) {
+            System.out.println("RPC failed: {0} "+e.getStatus());
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
 
 private void deleteFunction(String functionName) {
@@ -153,7 +182,8 @@ private void deleteFunction(String functionName) {
     }
 	    public static void main( String[] args ) {
             JavaExecutorGRPCClient client = new JavaExecutorGRPCClient("localhost", 8080);
-            client.addFunction("MyFunction","io.mark.java_examples.Executables.RunThisCode:handleRequest");
+            Object returnedObj;
+            /*client.addFunction("MyFunction","io.mark.java_examples.Executables.RunThisCode:handleRequest");
             client.addFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode:run");
             client.addFunction("MyFunction3","io.mark.java_examples.Executables.RunThisCode:handleRequestStr");
             client.addFunction("MyFunction4","io.mark.java_examples.Executables.RunThisCode:handleRequestInt");
@@ -165,7 +195,26 @@ private void deleteFunction(String functionName) {
             client.executeFunction("MyFunction","");
             client.updateFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode:addPerson");
             client.listFunctions();
-            client.executeFunction("MyFunction2","{\"firstName\":\"Mark\",\"lastName\":\"Kose\",\"age\":30,\"isActive\":false}");
+           */
+            //client.addFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
+            //client.uploadFile("MyFunction2","ExecutableCode-1.0-SNAPSHOT.jar");
+//client.updateFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
+
+
+
+            // Let's execute AddPerson without specifying output format which should return a JSON string
+            returnedObj=client.executeFunction("MyFunction2","{\"firstName\":\"Mark\",\"lastName\":\"Kose\",\"age\":30,\"isActive\":false}");
+            System.out.println("Execution returned:"+returnedObj);
+
+             // Let's execute AddPerson but request a Java object returned
+            returnedObj=client.executeFunction("MyFunction2","{\"firstName\":\"Mark\",\"lastName\":\"Kose\",\"age\":30,\"isActive\":false}","java");
+            AddPersonResponse person=(AddPersonResponse)returnedObj;
+            System.out.print("Added " + person.fullName + " with age: " + person.age);
+            if (person.shouldExerciseMore)
+                System.out.print(" but I gotta say, this person should exercise more");
+            else
+                System.out.print(" and this person seems to be exercising enough");
+
 
             client.channel.shutdownNow();
 
