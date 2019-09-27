@@ -15,37 +15,39 @@ import java.io.ObjectInputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class JavaExecutorGRPCClient
 {
+    final static Logger logger = LoggerFactory.getLogger(JavaExecutorGRPCClient.class);
+    public final ManagedChannel channel;
+    public final FunctionServiceGrpc.FunctionServiceBlockingStub blockingStub;
+    public final FunctionServiceGrpc.FunctionServiceStub asyncStub;
 
-    private final ManagedChannel channel;
-    private final FunctionServiceGrpc.FunctionServiceBlockingStub blockingStub;
-    private final FunctionServiceGrpc.FunctionServiceStub asyncStub;
-
-    private  JavaExecutorGRPCClient(String host, int port) {
+    public  JavaExecutorGRPCClient(String host, int port) {
         channel=ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
         blockingStub = FunctionServiceGrpc.newBlockingStub(channel);
         asyncStub = FunctionServiceGrpc.newStub(channel);
 
     }
 
-    private void uploadFile(String functionName,String fileName) {
-        System.out.println("Starting uploadFile function name:"+functionName+" file name:"+fileName);
+    public boolean uploadFile(String functionName,String fileName) {
+        logger.info("Starting uploadFile function name:"+functionName+" file name:"+fileName);
 
         final CountDownLatch finishLatch = new CountDownLatch(1);
 
         StreamObserver<UploadFileResponse> responseObserver = new StreamObserver<UploadFileResponse>() {
             public void onNext(UploadFileResponse res) {
-                System.out.println("Uploaded: " + res.getUploaded());
-            }
+             }
 
             public void onError(Throwable t) {
-                System.out.println("Upload File Failed: {0} \n" + Status.fromThrowable(t));
+                logger.error("Upload File Failed: {0} \n" + Status.fromThrowable(t));
                 finishLatch.countDown();
             }
 
             public void onCompleted() {
-                System.out.println("Finished uploadFile");
+                logger.debug("Finished uploadFile");
                 finishLatch.countDown();
             }
         };
@@ -69,72 +71,80 @@ public class JavaExecutorGRPCClient
             }
             requestObserver.onCompleted();
             finishLatch.await(1, TimeUnit.MINUTES);
-        }catch(Exception e){e.printStackTrace();}
+            return true;
+        }catch(Exception e){
+            logger.error("Exception occured", e);
+            return false;
+            }
 
     }
 
-    private void addFunction(String functionName,String handler) {
-        System.out.println("Starting addFx");
-        AddRequest req = AddRequest.newBuilder().setName(functionName).setHandler(handler).build();
-
-        try {
+    public boolean addFunction(String functionName,String handler) {
+        logger.info("Starting addFunction function name:"+functionName+" handler:"+handler);
+          AddRequest req = AddRequest.newBuilder().setName(functionName).setHandler(handler).build();
+     try {
             AddResponse res = blockingStub.add(req);
-            System.out.println("Added:"+res);
+            boolean added=res.getAdded();
+            logger.debug("Added:"+added);
+            return added;
         } catch (StatusRuntimeException e) {
-            System.out.println("RPC failed: {0} "+e.getStatus());
+            logger.error("RPC failed: {0} "+e.getStatus());
+            return false;
         }
 
     }
 
-    private void updateFunction(String fxName,String handler) {
-        System.out.println("Starting updateFunction function name:"+fxName+" handler:"+handler);
-        UpdateRequest req = UpdateRequest.newBuilder().setName(fxName).setHandler(handler).build();
+    public boolean updateFunction(String functionName,String handler) {
+        logger.info("Starting updateFunction function name:"+functionName+" handler:"+handler);
+        UpdateRequest req = UpdateRequest.newBuilder().setName(functionName).setHandler(handler).build();
          try {
             UpdateResponse res = blockingStub.update(req);
-            System.out.println("Updated:"+res);
+            return res.getUpdated();
         } catch (StatusRuntimeException e) {
-            System.out.println("RPC failed: {0} "+e.getStatus());
+             logger.error("RPC failed: {0} "+e.getStatus());
+             return false;
         }
-
     }
 
-    private void listFunctions() {
-        System.out.println("Starting listFunctions");
+    public java.util.List<io.mark.java_examples.Executors.grpc.Function> listFunctions() {
+        logger.info("Starting listFunctions");
         ListRequest req = ListRequest.newBuilder().build();
-
         try {
             ListResponse res = blockingStub.list(req);
-            System.out.println("List of Functions \n");
+             return res.getFunctionList();
+            /*  System.out.println("List of Functions \n");
             res.getFunctionList().forEach(function -> {
                 System.out.println("Function:"+function.getName()+" handler:"+function.getHandler()+" JAR File:"+function.getJarFile());
-        });
+        }); */
         } catch (StatusRuntimeException e) {
-            System.out.println("RPC failed: {0} "+e.getStatus());
+            logger.error("RPC failed: {0} "+e.getStatus());
+            return null;
         }
 
     }
 
-    private void getFunction(String functionName) {
-        System.out.println("Starting getFunction name:"+functionName);
+    public GetResponse getFunction(String functionName) {
+        logger.info("Starting getFunction name:"+functionName);
         GetRequest req = GetRequest.newBuilder().setName(functionName).build();
 
         try {
             GetResponse res = blockingStub.get(req);
-            System.out.println("Function name:"+functionName+" Handler:"+res.getHandler()+" Jar File:"+res.getJarFile()+"\n");
+            return res;
+            //System.out.println("Function name:"+functionName+" Handler:"+res.getHandler()+" Jar File:"+res.getJarFile()+"\n");
         } catch (StatusRuntimeException e) {
-            System.out.println("RPC failed: {0} "+e.getStatus());
+            logger.error("RPC failed: {0} ",e);
+            return null;
         }
-
     }
-    private Object executeFunction(String functionName,String data) {
+
+    public Object executeFunction(String functionName,String data) {
         return executeFunction(functionName, data, null);
     }
 
-    private Object executeFunction(String functionName,String data,String requestedOutputFormat) {
+    public Object executeFunction(String functionName,String data,String requestedOutputFormat) {
+        logger.info("Starting executeFunction name:"+functionName);
         try {
-
-            //ExecutionRequest request = ExecutionRequest.newBuilder().setName(functionName).setInput(data).build();
-            ExecutionRequest.Builder reqBuilder = ExecutionRequest.newBuilder().setName(functionName).setInput(data);
+              ExecutionRequest.Builder reqBuilder = ExecutionRequest.newBuilder().setName(functionName).setInput(data);
 
             if (requestedOutputFormat != null) {
                 reqBuilder.setSerializationFormat(requestedOutputFormat);
@@ -145,42 +155,43 @@ public class JavaExecutorGRPCClient
                 return(response.getJsonOut());
             }else {
                 ObjectInputStream in = new ObjectInputStream(response.getJavaOut().newInput());
-                AddPersonResponse person = (AddPersonResponse) in.readObject();
+                Object obj=in.readObject();
                 in.close();
-                return person;
-                  /* In case we want to convert to JSON for any other reason we can use this code
-            Gson gson = new GsonBuilder()
-                    .setLenient()
-                    .create();
-            String jsonOut=gson.toJson(person)
-            */
+                return obj;
+
             }
         } catch (StatusRuntimeException e) {
-            System.out.println("RPC failed: {0} "+e.getStatus());
+            logger.error("RPC failed: {0} ",e);
             return null;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Exception occured: ",e);
             return null;
         }
     }
 
 
-private void deleteFunction(String functionName) {
-        System.out.println("Starting deleteFunction name:"+functionName);
+    public boolean deleteFunction(String functionName) {
+        logger.info("Starting deleteFunction name:"+functionName);
         DeleteRequest req = DeleteRequest.newBuilder().setName(functionName).build();
 
         try {
             DeleteResponse res = blockingStub.delete(req);
-            if (res.getDeleted())
+            return res.getDeleted();
+            /*if (res.getDeleted())
                 System.out.println("Deleted "+functionName);
             else
                 System.out.println("Could not delete "+functionName);
+
+             */
         } catch (StatusRuntimeException e) {
-            System.out.println("RPC failed: {0} "+e.getStatus());
+            logger.error("RPC failed: {0} ",e);
+            return false;
         }
 
     }
 	    public static void main( String[] args ) {
+            //BasicConfigurator.configure();
+
             JavaExecutorGRPCClient client = new JavaExecutorGRPCClient("localhost", 8080);
             Object returnedObj;
             /*client.addFunction("MyFunction","io.mark.java_examples.Executables.RunThisCode:handleRequest");
@@ -196,7 +207,7 @@ private void deleteFunction(String functionName) {
             client.updateFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode:addPerson");
             client.listFunctions();
            */
-            //client.addFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
+           client.addFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
             //client.uploadFile("MyFunction2","ExecutableCode-1.0-SNAPSHOT.jar");
 //client.updateFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
 

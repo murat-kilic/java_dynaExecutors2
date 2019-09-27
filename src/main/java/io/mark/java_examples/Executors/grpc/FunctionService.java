@@ -9,6 +9,9 @@ import io.grpc.stub.StreamObserver;
 import com.google.common.io.ByteSink;
 import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -19,26 +22,25 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 
 public class FunctionService extends  FunctionServiceGrpc.FunctionServiceImplBase {
-
+	final static Logger logger = LoggerFactory.getLogger(FunctionService.class);
 	// Contains all functions defined
 	HashMap<String,Function> functions =new HashMap<String,Function>();
 
 	@Override
 	public StreamObserver<UploadFileRequest> uploadFile(final StreamObserver<UploadFileResponse> responseObserver) {
-
 	return new StreamObserver<UploadFileRequest>() {
-		boolean fxNameSet=false;
-		String fxName=null,jarFile=null;
+		boolean functionNameSet=false;
+		String functionName=null,jarFile=null;
 		ByteSink byteSink=null;
 		File uploadedFile=null;
 			@Override
 			public void onNext(UploadFileRequest req) {
 				try{
-				if (!fxNameSet) {
+				if (!functionNameSet) {
 					if (req.getFunctionName()!=null) {
-						fxName=req.getFunctionName();
+						functionName=req.getFunctionName();
 						jarFile=req.getJarFile();
-						System.out.println("Received Function Name:"+fxName+" JAR File:"+req.getJarFile()+"\n");
+						logger.debug("Received Function Name:"+functionName+" JAR File:"+req.getJarFile()+"\n");
 						if (!req.getJarFile().endsWith(".jar") && !req.getJarFile().endsWith(".JAR")) {
 						 responseObserver.onError(Status.FAILED_PRECONDITION.augmentDescription("You can only upload JAR files").asRuntimeException());
 							return;
@@ -50,29 +52,28 @@ public class FunctionService extends  FunctionServiceGrpc.FunctionServiceImplBas
 
 						uploadedFile = new File(uploadDir+File.separator+req.getJarFile());
 						byteSink = Files.asByteSink(uploadedFile, FileWriteMode.APPEND);
-						fxNameSet=true;
+						functionNameSet=true;
 					}
 				}else {
-					System.out.println("Received data:" + req.getFileContent() + "\n");
 					byteSink.write(req.getFileContent().toByteArray());
 				}
 				}catch (IOException e) {
-					e.printStackTrace();
+					logger.error("Exception occured: ",e);
 					responseObserver.onError(e);
 				}
 			}
 			@Override
 			public void onError(Throwable t) {
-				System.out.println("uploadFile cancelled");
+				logger.error("uploadFile cancelled");
 			}
 			@Override
 			public void onCompleted() {
-				Function fx=functions.get(fxName);
+				Function fx=functions.get(functionName);
 				if (fx != null) {
-					functions.put(fxName, Function.newBuilder().setName(fxName).setHandler(fx.getHandler()).setJarFile(jarFile).build());
+					functions.put(functionName, Function.newBuilder().setName(functionName).setHandler(fx.getHandler()).setJarFile(jarFile).build());
 					responseObserver.onNext(UploadFileResponse.newBuilder().setUploaded(true).build());
 					responseObserver.onCompleted();
-					System.out.println("uploadFile completed");
+					logger.debug("uploadFile completed");
 				}else {
 					responseObserver.onError(Status.NOT_FOUND.augmentDescription("Function does not exist").asRuntimeException());
 				}
@@ -85,37 +86,30 @@ public class FunctionService extends  FunctionServiceGrpc.FunctionServiceImplBas
 	public void add(io.mark.java_examples.Executors.grpc.AddRequest request,
 					io.grpc.stub.StreamObserver<io.mark.java_examples.Executors.grpc.AddResponse> responseObserver) {
 		// Check if it exists first
-			String fxName=request.getName();
-			if (functions.get(fxName) != null) {
+			String functionName=request.getName();
+			if (functions.get(functionName) != null) {
 				responseObserver.onError(Status.ALREADY_EXISTS.augmentDescription("Function exists").asRuntimeException());
 			return;
 			}
 
-		System.out.println("Adding function:"+request.getName());
+		logger.info("Adding function:"+request.getName());
 		Function fn=Function.newBuilder().setName(request.getName()).setHandler(request.getHandler()).build();
-		functions.put(fxName,fn);
+		functions.put(functionName,fn);
 
 		//AddResponse.Builder resBuilder = io.mark.java_examples.Executors.grpc.AddResponse.newBuilder();
 		responseObserver.onNext(AddResponse.newBuilder().setAdded(true).build());
 		responseObserver.onCompleted();
-
-			System.out.println("Listing functions : \n");
-		functions.keySet().forEach(name->{
-			System.out.println(name+":"+functions.get(name)+"\n");
-			});
-
-
 	}
 
 	public void delete(io.mark.java_examples.Executors.grpc.DeleteRequest request,
 					   io.grpc.stub.StreamObserver<io.mark.java_examples.Executors.grpc.DeleteResponse> responseObserver) {
-		String fxName=request.getName();
-			System.out.println("Delete function received with name:"+ fxName);
-				if (functions.get(fxName) == null) {
+		String functionName=request.getName();
+			logger.info("Delete function received with name:"+ functionName);
+				if (functions.get(functionName) == null) {
 					responseObserver.onError(Status.NOT_FOUND.augmentDescription("Function does not exist").asRuntimeException());
 					return;
 				}
-			functions.remove(fxName);
+			functions.remove(functionName);
 			responseObserver.onNext(DeleteResponse.newBuilder().setDeleted(true).build());
 			responseObserver.onCompleted();
 
@@ -124,16 +118,16 @@ public class FunctionService extends  FunctionServiceGrpc.FunctionServiceImplBas
     public void update(io.mark.java_examples.Executors.grpc.UpdateRequest request,
                        io.grpc.stub.StreamObserver<io.mark.java_examples.Executors.grpc.UpdateResponse> responseObserver) {
         // Check if it exists first
-        String fxName=request.getName();
-        Function fx=functions.get(fxName);
+        String functionName=request.getName();
+        Function fx=functions.get(functionName);
         if (fx == null) {
             responseObserver.onError(Status.NOT_FOUND.augmentDescription("Function does not exist").asRuntimeException());
             return;
         }
 
-        System.out.println("Updating function:"+fxName);
-        Function updatedFx=Function.newBuilder().setName(fxName).setHandler(request.getHandler()).setJarFile(fx.getJarFile()).build();
-        functions.put(fxName,updatedFx);
+        logger.info("Updating function:"+functionName);
+        Function updatedFx=Function.newBuilder().setName(functionName).setHandler(request.getHandler()).setJarFile(fx.getJarFile()).build();
+        functions.put(functionName,updatedFx);
 
         responseObserver.onNext(UpdateResponse.newBuilder().setUpdated(true).build());
         responseObserver.onCompleted();
@@ -146,7 +140,7 @@ try {
 	responseObserver.onNext(GetResponse.newBuilder().setHandler(fx.getHandler()).setJarFile(fx.getJarFile()).build());
 	responseObserver.onCompleted();
 }catch(NullPointerException e){
-	e.printStackTrace();
+	logger.error("Exception occured: ",e);
 	responseObserver.onError(Status.NOT_FOUND.augmentDescription("Could not find function").asRuntimeException());
 }
 	}
@@ -165,14 +159,15 @@ try {
 @Override
 	public void execute(io.mark.java_examples.Executors.grpc.ExecutionRequest request,
 			         io.grpc.stub.StreamObserver<io.mark.java_examples.Executors.grpc.ExecutionResponse> responseObserver) {
-	  System.out.println(request);
-	  String fxName=request.getName();
-	  Function fx=functions.get(fxName);
+
+	  String functionName=request.getName();
+	  Function fx=functions.get(functionName);
+	logger.info("Executing function: "+functionName);
 	   ExecutionResponse.Builder resBuilder = ExecutionResponse.newBuilder();
 
 	   try {
 		   ClassLoader classLoader = FunctionService.class.getClassLoader();
-		   Path jarPath=Paths.get(System.getProperty("java.io.tmpdir")+"uploaded"+File.separator+fxName+File.separator+fx.getJarFile());
+		   Path jarPath=Paths.get(System.getProperty("java.io.tmpdir")+"uploaded"+File.separator+functionName+File.separator+fx.getJarFile());
 		   URLClassLoader urlClassLoader = new URLClassLoader(
 				   new URL[]{jarPath.toUri().toURL()},
 				   classLoader);
@@ -186,8 +181,7 @@ try {
 				   .create();
 		   Method[] methods = executableClass.getDeclaredMethods();
 		   String methodName = tempArray[1];
-		   // System.out.println(methodName);
-		   boolean foundMethod = false;
+		     boolean foundMethod = false;
 		   for (Method m : methods) {
 			   if (m.getName().equals(methodName)) {
 				   foundMethod = true;
@@ -206,7 +200,6 @@ try {
 		   }
 		   if (foundMethod) {
 			   if (returnedObject == null) {
-					   } else {
 			   		if (request.getSerializationFormat().equals("java")) {
 						// Change output data to Bytestring (bytes in proto) instead of JSON
 
@@ -232,21 +225,21 @@ try {
 
 	   }catch (JsonSyntaxException e) {
 		   responseObserver.onError(Status.UNKNOWN.augmentDescription("Data provided can not be consumed by method").asRuntimeException());
-		   e.printStackTrace();
+		   logger.error("Exception occured: ",e);
 	    }catch(ClassNotFoundException e){
 		   responseObserver.onError(Status.UNKNOWN.augmentDescription("Could not find class").asRuntimeException());
-		   e.printStackTrace();
+		   logger.error("Exception occured: ",e);
 	   }catch(NoSuchMethodException e){
 		   responseObserver.onError(Status.UNKNOWN.augmentDescription("There is no such method").asRuntimeException());
-		   e.printStackTrace();
+		   logger.error("Exception occured: ",e);
 	   }catch(IllegalAccessException e){
 		   //resBuilder.setErrCode("Illegal access to the method");
 	   }catch(InvocationTargetException e){
 		   responseObserver.onError(Status.UNKNOWN.augmentDescription("Could not invoke method").asRuntimeException());
-		   e.printStackTrace();
+		   logger.error("Exception occured: ",e);
 	 }catch(Exception e) {
 		 responseObserver.onError(Status.UNKNOWN.augmentDescription("Exception occured").asRuntimeException());
-		   e.printStackTrace();
+		   logger.error("Exception occured: ",e);
 	 }
 
  }

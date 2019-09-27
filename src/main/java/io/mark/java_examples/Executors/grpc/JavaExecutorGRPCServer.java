@@ -2,6 +2,8 @@ package io.mark.java_examples.Executors.grpc;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -11,20 +13,31 @@ import java.nio.file.Paths;
 
 public class JavaExecutorGRPCServer
 {
-	private void startServer() throws Exception {
+	final static Logger logger = LoggerFactory.getLogger(JavaExecutorGRPCServer.class);
+	Server server;
+	public boolean startServer()  {
+		try {
+			logger.info("Starting JavaExecutorGRPCServer");
+			// Let's create uploaded directory if it does not exist
+			Path uploadDir = Paths.get(System.getProperty("java.io.tmpdir") + "uploaded");
+			if (!Files.exists(uploadDir))
+				Files.createDirectory(uploadDir);
 
-		// Let's create uploaded directory if it does not exist
-		Path uploadDir=Paths.get(System.getProperty("java.io.tmpdir")+"uploaded");
-		if (!Files.exists(uploadDir))
-			Files.createDirectory(uploadDir);
+			 server = ServerBuilder.forPort(8080)
+					.addService(new FunctionService())
+					.build();
 
-		  Server server = ServerBuilder.forPort(8080)
-			               .addService(new FunctionService())
-			              .build();
+			server.start();
+			System.out.println("JavaExecutorGRPCServer is ready");
+			logger.info("JavaExecutorGRPCServer is ready");
+			//server.awaitTermination();
+		}catch (java.io.IOException e){
+			return false;
+		}
+		/*catch(java.lang.InterruptedException e) {
 
-		    server.start();
-		     System.out.println("Server started");
-		          server.awaitTermination();
+		}*/
+		return true;
 
 	}
 
@@ -32,6 +45,7 @@ public class JavaExecutorGRPCServer
 		      {
 			      JavaExecutorGRPCServer jes=new JavaExecutorGRPCServer();
 				    jes.startServer();
+				  jes.server.awaitTermination();
 			 }
 
 
