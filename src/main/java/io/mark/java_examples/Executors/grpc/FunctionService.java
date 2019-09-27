@@ -199,7 +199,7 @@ try {
 			   }
 		   }
 		   if (foundMethod) {
-			   if (returnedObject == null) {
+			   if (returnedObject != null) {
 			   		if (request.getSerializationFormat().equals("java")) {
 						// Change output data to Bytestring (bytes in proto) instead of JSON
 

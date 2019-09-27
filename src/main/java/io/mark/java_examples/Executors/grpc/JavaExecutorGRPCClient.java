@@ -112,10 +112,6 @@ public class JavaExecutorGRPCClient
         try {
             ListResponse res = blockingStub.list(req);
              return res.getFunctionList();
-            /*  System.out.println("List of Functions \n");
-            res.getFunctionList().forEach(function -> {
-                System.out.println("Function:"+function.getName()+" handler:"+function.getHandler()+" JAR File:"+function.getJarFile());
-        }); */
         } catch (StatusRuntimeException e) {
             logger.error("RPC failed: {0} "+e.getStatus());
             return null;
@@ -152,8 +148,10 @@ public class JavaExecutorGRPCClient
 
             ExecutionResponse response = blockingStub.execute(reqBuilder.build());
             if (response.getOutputOneofCase().equals(ExecutionResponse.OutputOneofCase.JSONOUT)) {
+                logger.debug("Output is JSON");
                 return(response.getJsonOut());
             }else {
+                logger.debug("Output is Java");
                 ObjectInputStream in = new ObjectInputStream(response.getJavaOut().newInput());
                 Object obj=in.readObject();
                 in.close();
@@ -177,12 +175,6 @@ public class JavaExecutorGRPCClient
         try {
             DeleteResponse res = blockingStub.delete(req);
             return res.getDeleted();
-            /*if (res.getDeleted())
-                System.out.println("Deleted "+functionName);
-            else
-                System.out.println("Could not delete "+functionName);
-
-             */
         } catch (StatusRuntimeException e) {
             logger.error("RPC failed: {0} ",e);
             return false;
@@ -190,29 +182,19 @@ public class JavaExecutorGRPCClient
 
     }
 	    public static void main( String[] args ) {
-            //BasicConfigurator.configure();
-
             JavaExecutorGRPCClient client = new JavaExecutorGRPCClient("localhost", 8080);
             Object returnedObj;
-            /*client.addFunction("MyFunction","io.mark.java_examples.Executables.RunThisCode:handleRequest");
-            client.addFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode:run");
-            client.addFunction("MyFunction3","io.mark.java_examples.Executables.RunThisCode:handleRequestStr");
-            client.addFunction("MyFunction4","io.mark.java_examples.Executables.RunThisCode:handleRequestInt");
+            client.addFunction("MyFunction","io.mark.java_examples.Executables.RunThisCode::handleRequest");
+            client.addFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::run");
+            client.addFunction("MyFunction3","io.mark.java_examples.Executables.RunThisCode::handleRequestStr");
             client.uploadFile("MyFunction","ExecutableCode-1.0-SNAPSHOT.jar");
             client.uploadFile("MyFunction2","ExecutableCode-1.0-SNAPSHOT.jar");
             client.deleteFunction("MyFunction3");
             client.listFunctions();
             client.getFunction("MyFunction");
-            client.executeFunction("MyFunction","");
-            client.updateFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode:addPerson");
+            System.out.println("MyFunction Execution result:"+client.executeFunction("MyFunction",""));
+            client.updateFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
             client.listFunctions();
-           */
-           client.addFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
-            //client.uploadFile("MyFunction2","ExecutableCode-1.0-SNAPSHOT.jar");
-//client.updateFunction("MyFunction2","io.mark.java_examples.Executables.RunThisCode::addPerson");
-
-
-
             // Let's execute AddPerson without specifying output format which should return a JSON string
             returnedObj=client.executeFunction("MyFunction2","{\"firstName\":\"Mark\",\"lastName\":\"Kose\",\"age\":30,\"isActive\":false}");
             System.out.println("Execution returned:"+returnedObj);

@@ -34,9 +34,6 @@ public class JavaExecutorGRPCServer
 		}catch (java.io.IOException e){
 			return false;
 		}
-		/*catch(java.lang.InterruptedException e) {
-
-		}*/
 		return true;
 
 	}
