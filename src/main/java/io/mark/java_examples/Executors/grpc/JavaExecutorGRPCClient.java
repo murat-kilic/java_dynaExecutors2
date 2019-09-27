@@ -9,6 +9,7 @@ import com.google.protobuf.ByteString;
 import io.mark.java_examples.Executables.AddPersonResponse;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 
 import java.io.ObjectInputStream;
@@ -58,7 +59,7 @@ public class JavaExecutorGRPCClient
                     UploadFileRequest.newBuilder().setFunctionName(functionName).setJarFile(fileName).build()
             );
 
-            FileInputStream fis = new FileInputStream(System.getProperty("java.io.tmpdir")+fileName);
+            FileInputStream fis = new FileInputStream(System.getProperty("java.io.tmpdir")+ File.separator+fileName);
             BufferedInputStream bis = new BufferedInputStream(fis);
             int bufferSize = 256 * 1024;
             byte[] buffer = new byte[bufferSize];

@@ -46,7 +46,7 @@ public class FunctionService extends  FunctionServiceGrpc.FunctionServiceImplBas
 							return;
 						}
 						// Let's create uploaded directory if it does not exist
-						Path uploadDir=Paths.get(System.getProperty("java.io.tmpdir")+"uploaded"+File.separator+req.getFunctionName());
+						Path uploadDir=Paths.get(System.getProperty("java.io.tmpdir")+File.separator+"uploaded"+File.separator+req.getFunctionName());
 						if (!java.nio.file.Files.exists(uploadDir))
 							java.nio.file.Files.createDirectory(uploadDir);
 
@@ -167,7 +167,7 @@ try {
 
 	   try {
 		   ClassLoader classLoader = FunctionService.class.getClassLoader();
-		   Path jarPath=Paths.get(System.getProperty("java.io.tmpdir")+"uploaded"+File.separator+functionName+File.separator+fx.getJarFile());
+		   Path jarPath=Paths.get(System.getProperty("java.io.tmpdir")+File.separator+"uploaded"+File.separator+functionName+File.separator+fx.getJarFile());
 		   URLClassLoader urlClassLoader = new URLClassLoader(
 				   new URL[]{jarPath.toUri().toURL()},
 				   classLoader);

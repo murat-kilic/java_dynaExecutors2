@@ -19,7 +19,7 @@ public class JavaExecutorGRPCServer
 		try {
 			logger.info("Starting JavaExecutorGRPCServer");
 			// Let's create uploaded directory if it does not exist
-			Path uploadDir = Paths.get(System.getProperty("java.io.tmpdir") + "uploaded");
+			Path uploadDir = Paths.get(System.getProperty("java.io.tmpdir") + File.separator+"uploaded");
 			if (!Files.exists(uploadDir))
 				Files.createDirectory(uploadDir);
 
@@ -32,6 +32,7 @@ public class JavaExecutorGRPCServer
 			logger.info("JavaExecutorGRPCServer is ready");
 			//server.awaitTermination();
 		}catch (java.io.IOException e){
+		    logger.error("Exception occured",e);
 			return false;
 		}
 		return true;
