@@ -13,7 +13,7 @@ public class TestJavaExecutionGRPCService {
         System.out.println("Setting up test environment");
         JavaExecutorGRPCServer jes=new JavaExecutorGRPCServer();
         jes.startServer();
-         client = new JavaExecutorGRPCClient("localhost", 8080);
+         client = new JavaExecutorGRPCClient("127.0.0.1", 8080);
          }
 
 
